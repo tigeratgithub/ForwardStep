@@ -137,13 +137,21 @@ void PendSV_Handler(void)
   * @retval None
   */
 void SysTick_Handler(void)
-{}
+{
+	//todo by tiger 2015.1.10 add pulse time check 
+	capture ++;
+}
 
+void DMA1_Channel2_IRQHandler(void)
+{
+	DMA_ClearFlag(DMA1_FLAG_GL2 | DMA1_FLAG_TC2 | DMA1_FLAG_HT2 | DMA1_FLAG_TE2);
+	DMA_ClearITPendingBit(DMA1_IT_GL2 | DMA1_IT_TC2 | DMA1_IT_HT2 | DMA1_IT_TE2);
+}
 	
 //uint16_t x_count = 0;
 void TIM1_UP_IRQHandler(void)
 {
-	TIM_Cmd(TIM1, DISABLE);
+//	TIM_Cmd(TIM1, DISABLE);
 }
 
 extern T_Encoder_TypeDef enc1, enc2;
@@ -152,16 +160,16 @@ extern T_Encoder_TypeDef enc1, enc2;
 /******************************************************************************/
 void TIM4_IRQHandler(void)
 {
-	if ((TIM4->SR & 0x1) == 1)
-	{
-		enc1.curCounter += enc1.TIM->ARR * (enc1.TIM->RCR + 1);
-	} 
-	
+//	if ((TIM4->SR & 0x1) == 1)
+//	{
+//		enc1.curCounter += enc1.TIM->ARR * (enc1.TIM->RCR + 1);
+//	} 
+//	
 }
 
 /**
   * @brief  This function handles TIM3 global interrupt request.
-  * @param  None
+  * @param  None TIM3_IRQn
   * @retval None
   */
 void TIM3_IRQHandler(void)

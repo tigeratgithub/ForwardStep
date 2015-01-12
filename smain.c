@@ -33,18 +33,14 @@ void NVIC_Configuration(void);
 void UART_Config(void);
 
 /* Private functions ---------------------------------------------------------*/
-uint32_t i, count;
-extern T_Encoder_TypeDef enc1, enc2;
-extern T_GPIO_Pin_TypeDef spin, ppin, rpin;
-char U3TX_Buffer[256];
-char U3RX_Buffer[256];
-#define	UART3_TX_DMA	DMA1_Channel2
-#define UART3_RX_DMA	DMA1_Channel3
-#define UART3_DR_Base	0x40004804
+
+
+
+
 
 #define BITBAND(a, i) (0x22000000 + (((uint32_t)a - 0x20000000) << 5) + (i << 2))
 
-volatile int64_t enccount;
+
 /** 
   * @brief  Main program
   * @param  None
@@ -72,43 +68,43 @@ int main(void)
 	NVIC_Configuration();
 
 	UART_Config();
-	
-		strcpy (U3TX_Buffer, "HELLO TIGER!!I LOVE FANGJUN\0");
-		GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET);
-		DMA_SetCurrDataCounter(DMA1_Channel2, 25);
-		DMA_Cmd(DMA1_Channel2, ENABLE);
-		/*
-		while(USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET)
-		{
-		}
-		// Write one byte in the USARTy Transmit Data Register
-		//USART_SendData(USART3, 'H');
-		//USART_SendData(USART3, 'h');
-		*/
-		//DMA_Cmd(UART3_TX_DMA, ENABLE);
-	
-	count = 3000000;
+//	
+//		//strcpy (U3TX_Buffer, "HELLO TIGER!!I LOVE FANGJUN\0");
+//		GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET);
+//		DMA_SetCurrDataCounter(DMA1_Channel2, 25);
+//		DMA_Cmd(DMA1_Channel2, ENABLE);
+//		/*
+//		while(USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET)
+//		{
+//		}
+//		// Write one byte in the USARTy Transmit Data Register
+//		//USART_SendData(USART3, 'H');
+//		//USART_SendData(USART3, 'h');
+//		*/
+//		//DMA_Cmd(UART3_TX_DMA, ENABLE);
+//	
+//	count = 3000000;
 
-	encoder_Deinit(&enc1);
-	encoder_config(&enc1, 4, 10000, 0, AB, spin, ppin, rpin);
-	while (1)
-	{
-		
-		enccount = getEncCounter(&enc1);
-		for (i = 0; i < count; i ++)
-		{
-			if (i == 0)
-			{
-				GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_SET);
-				GPIO_WriteBit(GPIOA, GPIO_Pin_8 | GPIO_Pin_9, Bit_SET);
-			}
-			if (i == count / 2)
-			{
-				GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_RESET);
-				GPIO_WriteBit(GPIOA, GPIO_Pin_8 | GPIO_Pin_9, Bit_RESET);
-			}
-		}
-	}
+//	encoder_Deinit(&enc1);
+//	encoder_config(&enc1, 4, 10000, 0, AB, spin, ppin, rpin);
+//	while (1)
+//	{
+//		
+//		enccount = getEncCounter(&enc1);
+//		for (i = 0; i < count; i ++)
+//		{
+//			if (i == 0)
+//			{
+//				GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_SET);
+//				GPIO_WriteBit(GPIOA, GPIO_Pin_8 | GPIO_Pin_9, Bit_SET);
+//			}
+//			if (i == count / 2)
+//			{
+//				GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_RESET);
+//				GPIO_WriteBit(GPIOA, GPIO_Pin_8 | GPIO_Pin_9, Bit_RESET);
+//			}
+//		}
+//	}
 }
 
 /**
@@ -181,21 +177,21 @@ void GPIO_Configuration(void)
   */
 void DMA_Configuration(void)
 {
-	DMA_InitTypeDef DMA_InitStructure;
+//	DMA_InitTypeDef DMA_InitStructure;
 
-	DMA_DeInit(UART3_TX_DMA); 
-	DMA_InitStructure.DMA_PeripheralBaseAddr = UART3_DR_Base;
-	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)U3TX_Buffer;
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
-	DMA_InitStructure.DMA_BufferSize = 0;//实际运行时设定长度
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte; 
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal; //normal or cycle
-	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh; //优先级
-	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable; 	
-	DMA_Init(UART3_TX_DMA, &DMA_InitStructure);
+//	DMA_DeInit(UART3_TX_DMA); 
+//	DMA_InitStructure.DMA_PeripheralBaseAddr = UART3_DR_Base;
+//	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)U3TX_Buffer;
+//	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
+//	DMA_InitStructure.DMA_BufferSize = 0;//实际运行时设定长度
+//	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+//	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+//	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+//	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte; 
+//	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal; //normal or cycle
+//	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh; //优先级
+//	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable; 	
+//	DMA_Init(UART3_TX_DMA, &DMA_InitStructure);
 	
 }
 
@@ -232,23 +228,23 @@ void NVIC_Configuration(void)
 
 void UART_Config(void)
 {
-	USART_InitTypeDef USART_InitStructure;
-	USART_InitStructure.USART_BaudRate = 256000;
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-	USART_InitStructure.USART_StopBits = USART_StopBits_1;
-	USART_InitStructure.USART_Parity = USART_Parity_No;
-	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+//	USART_InitTypeDef USART_InitStructure;
+//	USART_InitStructure.USART_BaudRate = 256000;
+//	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+//	USART_InitStructure.USART_StopBits = USART_StopBits_1;
+//	USART_InitStructure.USART_Parity = USART_Parity_No;
+//	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+//	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
 
-	USART_Init(USART3, &USART_InitStructure);
-	USART_DMACmd(USART3, USART_DMAReq_Rx | USART_DMAReq_Tx, ENABLE);
-	//DMA_Cmd(UART3_TX_DMA, ENABLE);
-	//DMA_Cmd(UART3_RX_DMA, ENABLE);
-	
-	DMA_ITConfig(UART3_TX_DMA, DMA_IT_TC, ENABLE);
-	
-	
-	USART_Cmd(USART3, ENABLE);
+//	USART_Init(USART3, &USART_InitStructure);
+//	USART_DMACmd(USART3, USART_DMAReq_Rx | USART_DMAReq_Tx, ENABLE);
+//	//DMA_Cmd(UART3_TX_DMA, ENABLE);
+//	//DMA_Cmd(UART3_RX_DMA, ENABLE);
+//	
+//	DMA_ITConfig(UART3_TX_DMA, DMA_IT_TC, ENABLE);
+//	
+//	
+//	USART_Cmd(USART3, ENABLE);
 	
 }
 
