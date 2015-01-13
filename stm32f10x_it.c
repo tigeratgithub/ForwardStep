@@ -24,6 +24,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
 #include "encoder.h"
+#include "modmaster.h"
 
 /** @addtogroup STM32F10x_StdPeriph_Examples
   * @{
@@ -142,8 +143,27 @@ void SysTick_Handler(void)
 	capture ++;
 }
 
+extern Mod_Master_Frame_TypeDef modu3;
+void USART3_IRQHandler(void)
+{
+	//for tc/rxne
+	Mod_Master_Frame_TypeDef* frame = &modu3;
+
+	//tc
+	if (USART_GetITStatus(frame->uart, USART_IT_TC) == SET)
+		mod_int_tc(frame);
+	//rx
+	if (USART_GetITStatus(frame->uart, USART_IT_RXNE) == SET)
+		mod_int_rx(frame);
+}
+
 void DMA1_Channel2_IRQHandler(void)
 {
+	Mod_Master_Frame_TypeDef* frame = &modu3;
+	if (DMA_GetITStatus(DMA1_FLAG_TC2) == SET)
+	{
+		mod_int_dma_tc(frame);
+	}
 	DMA_ClearFlag(DMA1_FLAG_GL2 | DMA1_FLAG_TC2 | DMA1_FLAG_HT2 | DMA1_FLAG_TE2);
 	DMA_ClearITPendingBit(DMA1_IT_GL2 | DMA1_IT_TC2 | DMA1_IT_HT2 | DMA1_IT_TE2);
 }
@@ -154,7 +174,7 @@ void TIM1_UP_IRQHandler(void)
 //	TIM_Cmd(TIM1, DISABLE);
 }
 
-extern T_Encoder_TypeDef enc1, enc2;
+//extern T_Encoder_TypeDef enc1, enc2;
 /******************************************************************************/
 /*            STM32F10x Peripherals Interrupt Handlers                        */
 /******************************************************************************/
@@ -166,6 +186,19 @@ void TIM4_IRQHandler(void)
 //	} 
 //	
 }
+
+//modbus time check
+void TIM6_IRQHandler(void)
+{
+	Mod_Master_Frame_TypeDef* frame = &modu3;
+	if (frame->modState == Mod_State_Recving)
+		mod_int_frame_timeout(frame);
+	if (frame->modState == Mod_State_WaitForReply)
+		mod_int_timeout(frame);
+	TIM_IT_UPDATE = FALSE;
+}
+
+
 
 /**
   * @brief  This function handles TIM3 global interrupt request.

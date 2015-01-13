@@ -22,15 +22,15 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x.h"
 #include "encoder.h"
+#include "modmaster.h"
 #include <string.h>
 
 
 /* Private function prototypes -----------------------------------------------*/
 void RCC_Configuration(void);
 void GPIO_Configuration(void);
-void DMA_Configuration(void);
 void NVIC_Configuration(void);
-void UART_Config(void);
+
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -38,15 +38,14 @@ void UART_Config(void);
 
 
 
-#define BITBAND(a, i) (0x22000000 + (((uint32_t)a - 0x20000000) << 5) + (i << 2))
 
-
+Mod_Master_Frame_TypeDef modu3;
 /** 
   * @brief  Main program
   * @param  None
   * @retval None
   */
-int main(void)
+int main(void) 
 {
 	
   /*!< At this stage the microcontroller clock setting is already configured, 
@@ -63,48 +62,27 @@ int main(void)
 	GPIO_Configuration();
 
 	/* DMA Configuration */
-	DMA_Configuration();
-
 	NVIC_Configuration();
 
-	UART_Config();
-//	
-//		//strcpy (U3TX_Buffer, "HELLO TIGER!!I LOVE FANGJUN\0");
-//		GPIO_WriteBit(GPIOC, GPIO_Pin_5, Bit_SET);
-//		DMA_SetCurrDataCounter(DMA1_Channel2, 25);
-//		DMA_Cmd(DMA1_Channel2, ENABLE);
-//		/*
-//		while(USART_GetFlagStatus(USART3, USART_FLAG_TXE) == RESET)
-//		{
-//		}
-//		// Write one byte in the USARTy Transmit Data Register
-//		//USART_SendData(USART3, 'H');
-//		//USART_SendData(USART3, 'h');
-//		*/
-//		//DMA_Cmd(UART3_TX_DMA, ENABLE);
-//	
-//	count = 3000000;
 
-//	encoder_Deinit(&enc1);
-//	encoder_config(&enc1, 4, 10000, 0, AB, spin, ppin, rpin);
-//	while (1)
-//	{
-//		
-//		enccount = getEncCounter(&enc1);
-//		for (i = 0; i < count; i ++)
-//		{
-//			if (i == 0)
-//			{
-//				GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_SET);
-//				GPIO_WriteBit(GPIOA, GPIO_Pin_8 | GPIO_Pin_9, Bit_SET);
-//			}
-//			if (i == count / 2)
-//			{
-//				GPIO_WriteBit(GPIOC, GPIO_Pin_4, Bit_RESET);
-//				GPIO_WriteBit(GPIOA, GPIO_Pin_8 | GPIO_Pin_9, Bit_RESET);
-//			}
-//		}
-//	}
+	modu3.uart = USART3;
+	modu3.tim = TIM6;
+	modu3.baud = 19200;
+	modu3.parity = 2; 
+	
+	modbusRTUInit(&modu3);
+	
+
+	mod_master_send(&modu3, 1, ReadHoldRegs, 100, 10);
+	
+	cycleWork(&modu3);
+	//DMA_SetCurrDataCounter(DMA1_Channel2, modu3.txLen);
+	//DMA_Cmd(DMA1_Channel2, ENABLE);
+
+	while(1)
+	{
+		
+	}
 }
 
 /**
@@ -121,7 +99,7 @@ void RCC_Configuration(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 	
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE); 
 	/* DMA clock enable */
 	//RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
@@ -175,8 +153,8 @@ void GPIO_Configuration(void)
   * @param  None
   * @retval None
   */
-void DMA_Configuration(void)
-{
+//void DMA_Configuration(void)
+//{
 //	DMA_InitTypeDef DMA_InitStructure;
 
 //	DMA_DeInit(UART3_TX_DMA); 
@@ -192,8 +170,8 @@ void DMA_Configuration(void)
 //	DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh; //优先级
 //	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable; 	
 //	DMA_Init(UART3_TX_DMA, &DMA_InitStructure);
-	
-}
+//	
+//}
 
 /**
 * 我需要几个中断呢？
@@ -220,14 +198,10 @@ void NVIC_Configuration(void)
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 	
-	NVIC_InitStructure.NVIC_IRQChannel = (u8)DMA1_Channel2_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x0;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x2;
-	NVIC_Init(&NVIC_InitStructure);
 }
 
-void UART_Config(void)
-{
+//void UART_Config(void)
+//{
 //	USART_InitTypeDef USART_InitStructure;
 //	USART_InitStructure.USART_BaudRate = 256000;
 //	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
@@ -245,8 +219,8 @@ void UART_Config(void)
 //	
 //	
 //	USART_Cmd(USART3, ENABLE);
-	
-}
+//	
+//}
 
 
 

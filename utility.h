@@ -1,4 +1,9 @@
 #include "stm32f10x.h"
 
-#define BITBAND(a, i) (0x22000000 + (((uint32_t)a - 0x20000000) << 5) + (i << 2))
-#define BITVAL(a, i) (*(__IO uint8_t*)(0x22000000 + (((uint32_t)(a) - 0x20000000) << 5) + ((i) << 2)))
+#define BITBAND(a, i) (((u32)(a) & 0xF0000000) + 0x2000000 + (((u32)(a) & 0xFFFFF) << 5) + (i<<2))
+
+#define BITVAL(a, i) (*(__IO uint32_t*)(((u32)(a) & 0xF0000000) + 0x2000000 + (((u32)(a) & 0xFFFFF) << 5) + (i<<2)))
+
+#define MEM_ADDR(addr) *((volatile unsigned long *) (adr))
+
+#define RAM32(x)   	(*(__IO u32*)(u32)(x))

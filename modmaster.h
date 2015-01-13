@@ -4,6 +4,18 @@
 #ifndef __MODSTM8
 #define __MODSTM8
 
+#define UART_TIEN	BITVAL(&(frame->uart->CR1), 7)
+#define UART_TCIEN	BITVAL(&(frame->uart->CR1), 6)
+#define UART_TXE	BITVAL(&(frame->uart->SR), 7)
+#define UART_TC		BITVAL(&(frame->uart->SR), 6)
+#define UART_RXNE	BITVAL(&(frame->uart->SR), 5)
+#define UART_RIEN	BITVAL(&(frame->uart->CR1), 5)
+#define UART_REN	BITVAL(&(frame->uart->CR1), 2)
+#define UART_TEN	BITVAL(&(frame->uart->CR1), 3)
+#define UART_ORE	BITVAL(&(frame->uart->SR), 3)
+
+#define TIM_IT_UPDATE BITVAL(&(frame->tim->SR), 0)
+
 #define READ_WORD(X) *(uint16_t*)(X)
 #define WRITE_WORD(X, word) (*(uint16_t*)(X) = word)
 
@@ -16,8 +28,8 @@ typedef enum MOD_ROL
 typedef enum mod_timer_check
 {
 	MOD_TIMER_START = 0x01,
-	MOD_TIMER_PAUSE = 0x02,
-	MOD_TIMER_RESUM = 0x03,
+	//MOD_TIMER_PAUSE = 0x02,
+	//MOD_TIMER_RESUM = 0x03,
 	MOD_TIMER_STOP  = 0x04
 } Mod_Timer_Check_TypeDef;
 
@@ -29,7 +41,8 @@ typedef enum mod_master_state
 	Mod_State_WaitForReply		= 0x03,
 	Mod_State_ProcessReply		= 0x04,
 	Mod_State_ProcessErr		= 0x05,
-	Mod_State_Sending			= 0x06
+	Mod_State_Sending			= 0x06,
+	Mod_State_Recving			= 0x07
 } Mod_Master_State_TypeDef;
 
 //events source is 
@@ -80,17 +93,7 @@ typedef struct mod_int_status
 	BOOL	cycle_int_act;
 } Mod_Int_Status_TypeDef;
 
-typedef struct uart_reg
-{
-	vs32*	REN;
-	vs32*	TEN;
-	vs32*	RIEN;
-	vs32*	TCIEN;
-	vs32*	TIEN;
-	vs32*	RXNE;
-	vs32*	TC;
-	vs32*	TXE;
-} Uart_FlagBits_TypeDef;
+
 
 #define MOD_MAX_DATA_LEN	32
 #define MOD_MAX_BUF_LEN		50
@@ -156,7 +159,8 @@ typedef enum mod_cmd_code
 void setTimeoutCheck(Mod_Master_Frame_TypeDef* frame, Mod_Timer_Check_TypeDef act);
 void setFrameCheck(Mod_Master_Frame_TypeDef* frame, Mod_Timer_Check_TypeDef act);
 void modbusRTUInit(Mod_Master_Frame_TypeDef* frame);
-void MOD_UART_Config(Mod_Master_Frame_TypeDef* frame, USART_TypeDef* uart, uint32_t baud, uint16_t parity);
+void MOD_NVIC_Config(Mod_Master_Frame_TypeDef* frame);
+void MOD_UART_Config(Mod_Master_Frame_TypeDef* frame);
 void MOD_TIM_Config(TIM_TypeDef* tim);
 void mod_master_send(Mod_Master_Frame_TypeDef* frame, uint8_t wsAddr, Mod_Cmd_Code_TypeDef cmdCode, 
 		uint16_t dataAddr, uint8_t dataLen);
@@ -165,10 +169,13 @@ unsigned short CRC16 (uint8_t *puchMsg, uint8_t usDataLen );
 void frameProcessData(Mod_Master_Frame_TypeDef* aFrame);
 void sendFrame(Mod_Master_Frame_TypeDef* aFrame);
 
+void mod_int_dma_tc(Mod_Master_Frame_TypeDef* frame);
+
+
 void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame);
 void setINTPri(void);
 void mod_int_rx(Mod_Master_Frame_TypeDef* frame);
-void mod_int_tx(Mod_Master_Frame_TypeDef* frame);
+void mod_int_tc(Mod_Master_Frame_TypeDef* frame);
 void mod_int_timeout(Mod_Master_Frame_TypeDef* frame);
 
 void startRX(Mod_Master_Frame_TypeDef* frame);

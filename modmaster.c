@@ -9,17 +9,9 @@ void t_assert_failed(u8* file, u32 line);
 #define MOD_35_TICKS	10	//
 
 //BOOL  TX_Pin __attribute__((at(0x20000004)));  //此处地址并不对
-#define TX_Pin BITVAL(GPIOC->ODR, 5)
-//#define UART2_REN (*(BITBAND());
-//#define UART2_TEN @(UART2_BaseAddress + 5):3;
-//#define UART2_RIEN @(UART2_BaseAddress + 5):5;
-//#define UART2_TCIEN @(UART2_BaseAddress + 5):6;
-//#define UART2_TIEN @(UART2_BaseAddress + 5):7;
-//#define UART2_RXNE @UART2_BaseAddress:5;
-//#define UART2_TC 	@UART2_BaseAddress:6;
-//#define UART2_TXE @UART2_BaseAddress:7;
+#define TX_Pin BITVAL(&(GPIOC->ODR), 5)
 
-Uart_FlagBits_TypeDef uit;
+
 
 uint8_t *DI, *COILS, *M, *V;
 
@@ -67,7 +59,6 @@ const char auchCRCLo[] = {
 0x40
 }; 
 
-Mod_Master_Frame_TypeDef modFrame;
 Mod_Int_Status_TypeDef modInts;
 
 void modbusRTUInit(Mod_Master_Frame_TypeDef* frame)
@@ -99,7 +90,8 @@ void modbusRTUInit(Mod_Master_Frame_TypeDef* frame)
 	
 	setINTPri();//set int priority 
 	
-
+	MOD_NVIC_Config(frame);
+	MOD_UART_Config(frame);
 	MOD_TIM_Config(frame->tim);
 	frame->modState = Mod_State_Idle;
 	
@@ -109,29 +101,20 @@ void MOD_NVIC_Config(Mod_Master_Frame_TypeDef* frame)
 {
 	NVIC_InitTypeDef  NVIC_InitStructure;
 	
-	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+	//NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 	
-	if (frame->uart == USART1) {
-		NVIC_InitStructure.NVIC_IRQChannel = (u8)DMA1_Channel4_IRQn;
-	} else if (frame->uart == USART2) {
-		NVIC_InitStructure.NVIC_IRQChannel = (u8)DMA1_Channel7_IRQn;
-	} else if (frame->uart == USART3) {
-		NVIC_InitStructure.NVIC_IRQChannel = (u8)DMA1_Channel2_IRQn;
-	} else if (frame->uart == UART4) {
-		NVIC_InitStructure.NVIC_IRQChannel = (u8)DMA2_Channel4_5_IRQn;
-	} else {
-		while(1) {}
-	}
+	//INT: TC, RXNE, TIMcheck
+	
+	//UART TC/RX INT
+	NVIC_InitStructure.NVIC_IRQChannel = (u8)USART3_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x1;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x2;
 	NVIC_Init(&NVIC_InitStructure);
 
-	//UART RX INT 
-	NVIC_InitStructure.NVIC_IRQChannel = (u8)DMA2_Channel4_5_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x1;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x2;
-	NVIC_Init(&NVIC_InitStructure);	
+	NVIC_InitStructure.NVIC_IRQChannel = (u8)DMA1_Channel2_IRQn;
+	NVIC_Init(&NVIC_InitStructure);
 	
+	//TIMcheck
 	if (frame->tim == TIM6) {
 		NVIC_InitStructure.NVIC_IRQChannel = TIM6_IRQn;
 	} else if (frame->tim == TIM7) {
@@ -144,44 +127,49 @@ void MOD_NVIC_Config(Mod_Master_Frame_TypeDef* frame)
 	NVIC_Init(&NVIC_InitStructure);	
 }
 
-void MOD_UART_Config(Mod_Master_Frame_TypeDef* frame, USART_TypeDef* uart, uint32_t baud, uint16_t parity)
+void MOD_UART_Config(Mod_Master_Frame_TypeDef* frame)
 {
 	DMA_InitTypeDef DMA_InitStructure;
 	USART_InitTypeDef USART_InitStructure;
 
 	
-	DMA_Channel_TypeDef *dma_tx;//, *dma_rx;
+	DMA_Channel_TypeDef *dma_tx, *dma_rx;
 	
-	frame->uart = uart;
-	frame->baud = baud;
-	
+
 	USART_DeInit(frame->uart);
 	
 	USART_InitStructure.USART_BaudRate = frame->baud;
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	if (frame->parity == 1 || frame->parity == 2)
+		USART_InitStructure.USART_WordLength = USART_WordLength_9b;
+	else
+		USART_InitStructure.USART_WordLength = USART_WordLength_8b;
 	USART_InitStructure.USART_StopBits = USART_StopBits_1;
-	USART_InitStructure.USART_Parity = USART_Parity_No;
+	if (frame->parity == 0)
+		USART_InitStructure.USART_Parity = USART_Parity_No;
+	else if (frame->parity == 1)
+		USART_InitStructure.USART_Parity = USART_Parity_Odd;
+	else if (frame->parity == 2)
+		USART_InitStructure.USART_Parity = USART_Parity_Even;
+	else {
+		USART_InitStructure.USART_Parity = USART_Parity_No;
+	}
 	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
 	
 	USART_Init(frame->uart, &USART_InitStructure);
 	
-
-	
-	
-	
-	if (uart == USART1) { 
+	if (frame->uart == USART1) { 
 		dma_tx = DMA1_Channel4;
-		//dma_rx = DMA1_Channel5;
-	} else if (uart == USART2) {
+		dma_rx = DMA1_Channel5;
+	} else if (frame->uart == USART2) {
 		dma_tx = DMA1_Channel7;
-		//dma_rx = DMA1_Channel6;
-	} else if (uart == USART3) {
+		dma_rx = DMA1_Channel6;
+	} else if (frame->uart == USART3) {
 		dma_tx = DMA1_Channel2;
-		//dma_rx = DMA1_Channel3;
-	} else if (uart == UART4) {
+		dma_rx = DMA1_Channel3;
+	} else if (frame->uart == UART4) {
 		dma_tx = DMA2_Channel5;
-		//dma_rx = DMA2_Channel3;		
+		dma_rx = DMA2_Channel3;		
 	} else {
 		while(1){}
 	}
@@ -190,7 +178,7 @@ void MOD_UART_Config(Mod_Master_Frame_TypeDef* frame, USART_TypeDef* uart, uint3
 	
 	//tx
 	DMA_DeInit(dma_tx); 
-	DMA_InitStructure.DMA_PeripheralBaseAddr = frame->uart->DR;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)&(frame->uart->DR);
 	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)frame->txframe;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralDST;
 	DMA_InitStructure.DMA_BufferSize = 0;//实际运行时设定长度
@@ -203,24 +191,29 @@ void MOD_UART_Config(Mod_Master_Frame_TypeDef* frame, USART_TypeDef* uart, uint3
 	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable; 	
 	DMA_Init(dma_tx, &DMA_InitStructure);
 	
-	//DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)frame->rxframe;
-	//DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
-	//DMA_InitStructure.DMA_BufferSize = 
-	//DMA_Init(dma_rx, &DMA_InitStructure);
-
-	DMA_Cmd(dma_tx, ENABLE);
-	//DMA_Cmd(dma_rx, ENABLE);
+	DMA_InitStructure.DMA_MemoryBaseAddr = (uint32_t)frame->rxframe;
+	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
+	DMA_InitStructure.DMA_BufferSize = MOD_MAX_BUF_LEN;
+	DMA_Init(dma_rx, &DMA_InitStructure);
 
 	DMA_ITConfig(dma_tx, DMA_IT_TC, ENABLE);
+	//DMA_Cmd(dma_tx, DISABLE);
+	//DMA_Cmd(dma_rx, DISABLE);
+
+	
 	
 	// 启用接收中断 用于1.5char 检测
 	//否则可以启用IDLE中断，兼容性差一点
-	USART_ITConfig(frame->uart, USART_IT_RXNE, ENABLE); 
+	USART_ClearFlag(frame->uart, USART_FLAG_TC | USART_FLAG_RXNE);
+	USART_ClearITPendingBit(frame->uart, USART_IT_TC);
+	USART_ClearITPendingBit(frame->uart, USART_IT_RXNE);
 	
+	//USART_ITConfig(frame->uart, USART_IT_TC, ENABLE); 
+	USART_ITConfig(frame->uart, USART_IT_RXNE, ENABLE); 
 	
 	USART_DMACmd(frame->uart, USART_DMAReq_Rx | USART_DMAReq_Tx, ENABLE);
 	 
-  
+	USART_Cmd(frame->uart, ENABLE);
 }
 
 /**
@@ -245,7 +238,7 @@ void MOD_TIM_Config(TIM_TypeDef* TIM)
 	TIM_ClearFlag(TIM, TIM_FLAG_Update);
 	TIM_ClearITPendingBit(TIM, TIM_IT_Update);
 	TIM_ITConfig(TIM, TIM_IT_Update, ENABLE);
-	
+
 }
 
 void setTimeoutCheck(Mod_Master_Frame_TypeDef* frame, Mod_Timer_Check_TypeDef act)
@@ -261,14 +254,6 @@ void setTimeoutCheck(Mod_Master_Frame_TypeDef* frame, Mod_Timer_Check_TypeDef ac
 //		TIM2_SetCounter(0);
 //		TIM2_Cmd(ENABLE);
 		
-		modInts.timeout_int_en = TRUE;
-	} else if (act == MOD_TIMER_PAUSE) {
-		TIM_Cmd(frame->tim, DISABLE);
-		//TIM2_Cmd(DISABLE);
-		modInts.timeout_int_en = FALSE;
-	} else if (act == MOD_TIMER_RESUM) {
-		TIM_Cmd(frame->tim, ENABLE);
-		//TIM2_Cmd(ENABLE);
 		modInts.timeout_int_en = TRUE;
 	} else if (act == MOD_TIMER_STOP) {
 		TIM_Cmd(frame->tim, DISABLE);
@@ -291,14 +276,6 @@ void setFrameCheck(Mod_Master_Frame_TypeDef* frame, Mod_Timer_Check_TypeDef act)
 		//IM4_Cmd(ENABLE);
 		
 		modInts.frame_int_en = TRUE;
-	} else if (act == MOD_TIMER_PAUSE) {
-		TIM_Cmd(frame->tim, DISABLE);
-		//TIM4_Cmd(DISABLE);
-		modInts.frame_int_en = FALSE;
-	} else if (act == MOD_TIMER_RESUM) {
-		TIM_Cmd(frame->tim, ENABLE);
-		//TIM4_Cmd(ENABLE);
-		modInts.frame_int_en = TRUE;
 	} else if (act == MOD_TIMER_STOP) {
 		TIM_Cmd(frame->tim, DISABLE);
 		//TIM4_Cmd(DISABLE);
@@ -307,15 +284,7 @@ void setFrameCheck(Mod_Master_Frame_TypeDef* frame, Mod_Timer_Check_TypeDef act)
 
 }
 
-#define UART_TIEN	BITVAL(frame->uart->CR1, 7)
-#define UART_TCIEN	BITVAL(frame->uart->CR1, 6)
-#define UART_TXE	BITVAL(frame->uart->SR, 7)
-#define UART_TC		BITVAL(frame->uart->SR, 6)
-#define UART_RXNE	BITVAL(frame->uart->SR, 5)
-#define UART_RIEN	BITVAL(frame->uart->CR1, 5)
-#define UART_REN	BITVAL(frame->uart->CR1, 2)
-#define UART_TEN	BITVAL(frame->uart->CR1, 3)
-#define UART_ORE	BITVAL(frame->uart->SR, 3)		
+		
 void startRX(Mod_Master_Frame_TypeDef* frame)
 {
 	//tien tcien rien 7, 6, 5
@@ -373,7 +342,7 @@ void sendFrame(Mod_Master_Frame_TypeDef* frame)
 	frame->respOK = FALSE;
 	
 	setTimeoutCheck(frame, MOD_TIMER_STOP);
-	setFrameCheck(frame, MOD_TIMER_STOP);
+	
 	stopUART(frame);
 	
 	frame->request = FALSE;
@@ -389,7 +358,13 @@ void sendFrame(Mod_Master_Frame_TypeDef* frame)
 	startTX(frame);
 	/* BY TIGER 此处需要特别注意 */
 	//UART2_SendData8(frame->txframe[0]);
-	UART_TIEN = TRUE;
+	if (frame->uart == USART3)
+	{
+		DMA_Cmd(DMA1_Channel2, DISABLE);
+		DMA_SetCurrDataCounter(DMA1_Channel2, frame->txLen);
+		DMA_Cmd(DMA1_Channel2, ENABLE);
+	}
+	//UART_TCIEN = TRUE;
 
 	
 	return;
@@ -413,7 +388,7 @@ void frameProcessData(Mod_Master_Frame_TypeDef* frame)
 	//uint16_t 	*wp;
 	//uint8_t 	*bp;
 	uint16_t	i;
-	uint8_t		*target;
+	//uint8_t		*target;
 	
 	frame->fromAddr = frame->rxframe[0];
 	//todo process
@@ -434,22 +409,22 @@ void frameProcessData(Mod_Master_Frame_TypeDef* frame)
 			//start process 
 			switch (frame->cmdCode)
 			{
-				case 0x03:
+				case ReadHoldRegs:
 				{
 					frame->dataLen = frame->rxframe[2];
-					target = M; //
+					//target = M; //
 					for (i = 0; i < frame->dataLen; i ++)
 					{
 						frame->data[i] = frame->rxframe[i + 3];
 						//????????,??????? start 
-						*target = frame->data[i];
-						target ++;						
+						//*target = frame->data[i];
+						//target ++;						
 						//????????,??????? end
 					}
 					frame->errCode = Mod_Err_No;
 					break;
 				}
-				case 0x10:
+				case WriteMultiRegs:
 				{
 					frame->dataAddr = READ_WORD(frame->rxframe[2]);
 					frame->dataLen = READ_WORD(frame->rxframe[4]);
@@ -664,13 +639,13 @@ void mod_int_rx(Mod_Master_Frame_TypeDef* frame)
 		{
 			frame->rxframe[frame->rxCursor] = frame->uart->DR;
 			frame->rxCursor ++;
+			frame->rxLen = frame->rxCursor;
+			frame->modState = Mod_State_Recving;
 			setFrameCheck(frame, MOD_TIMER_START);
-
 		}
 		else 
 		{
 			//buffer is over
-			setTimeoutCheck(frame, MOD_TIMER_STOP);
 			setFrameCheck(frame, MOD_TIMER_STOP);
 			frame->modState = Mod_State_ProcessReply;
 
@@ -690,77 +665,47 @@ void mod_int_rx(Mod_Master_Frame_TypeDef* frame)
 			xval = frame->uart->DR;
 		frame->modState = Mod_State_ProcessReply;
 
-		setTimeoutCheck(frame, MOD_TIMER_STOP);
 		setFrameCheck(frame, MOD_TIMER_STOP);
 
 		frame->rxOver = TRUE;
 	}
 }
 
-
-void mod_int_tx(Mod_Master_Frame_TypeDef* frame)
+void mod_int_dma_tc(Mod_Master_Frame_TypeDef* frame)
 {
-	
-	if (UART_TXE == TRUE)
-	{
-		UART_RXNE = FALSE;
-		if (frame->txCursor < (frame->txLen - 1))
-		{
-			frame->txCursor ++;
-			if (frame->txCursor == 1)
-				frame->txCursor = 0 + 1;
-			
-			//UART2_SendData8(frame->txframe[frame->txCursor]);
-			if (frame->txCursor >= frame->txLen - 1)
-			{
-				UART_TIEN = FALSE;
-				UART_TCIEN = TRUE;
-			}
-		}
-		else
-		{
-			startRX(frame);
-		}
-	}
+	UART_TC = FALSE;
+	UART_TCIEN = TRUE;
+}
+
+void mod_int_tc(Mod_Master_Frame_TypeDef* frame)
+{
 	if (UART_TC == TRUE)
 	{
 		stopUART(frame);
-		
-		//if (frame->txCursor >= (frame->txLen - 1))
-		//{
-			frame->txOK = TRUE;
 
-			frame->rxOK = FALSE;
-			frame->rxCursor = 0;
-			frame->rxLen = 0;
-			frame->rxBufOver = FALSE;
-			frame->rxOver = FALSE;
+		frame->txOK = TRUE;
 
-			
+		frame->rxOK = FALSE;
+		frame->rxCursor = 0;
+		frame->rxLen = 0;
+		frame->rxBufOver = FALSE;
+		frame->rxOver = FALSE;
 
-			setFrameCheck(frame, MOD_TIMER_STOP);
-			setTimeoutCheck(frame, MOD_TIMER_START);
+		setTimeoutCheck(frame, MOD_TIMER_START);
 
-			frame->modState = Mod_State_WaitForReply;
-			frame->modEvent = Mod_Event_No;	//reset Event
-			startRX(frame);
-
-
-		//} else {
-		//	while(1);
-		//}
- 
+		frame->modState = Mod_State_WaitForReply;
+		frame->modEvent = Mod_Event_No;	//reset Event
+		startRX(frame);
 	}
 }
 
-#define TIM_IT_UPDATE BITVAL(frame->tim->SR, 0)
+
 
 void mod_int_timeout(Mod_Master_Frame_TypeDef* frame)
 {
 	stopUART(frame);
 	
 	setTimeoutCheck(frame, MOD_TIMER_STOP);
-	setFrameCheck(frame, MOD_TIMER_STOP);
 	
 	if (TIM_IT_UPDATE == TRUE)
 	{
@@ -784,14 +729,11 @@ void mod_int_timeout(Mod_Master_Frame_TypeDef* frame)
 			frame->linkFail = TRUE;
 			frame->modState = Mod_State_Idle;
 			
-			setTimeoutCheck(frame, MOD_TIMER_STOP);
-			setFrameCheck(frame, MOD_TIMER_STOP);
-
 			return;
-		}		
+		}
 	} else {
 		//process exception code
-		//todo 
+		//todo
 		while(1);
 	}
 }
@@ -802,7 +744,6 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 
 	stopUART(frame);
 
-	setTimeoutCheck(frame, MOD_TIMER_PAUSE);
 	setFrameCheck(frame, MOD_TIMER_STOP);
 	
 	//exception Slave or unexception Slave
@@ -811,12 +752,22 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 
 	if (frame->rxframe[0] != frame->toAddr)
 	{
-		frame->rxCursor = 0;
-		frame->rxLen = 0;
-		frame->rxOK = FALSE;
-		
-		setTimeoutCheck(frame, MOD_TIMER_RESUM);
-		startRX(frame);
+		if (frame->retryCount < MOD_MAX_RETRYS) //exceed max retry count
+		{
+			//resend , count ++
+			frame->retryCount ++;
+			frame->modState = Mod_State_Sending;
+			sendFrame(frame);
+			return;
+		} else {
+			//commucation error
+			frame->retryCount = 0;
+			frame->linkFail = TRUE;
+			frame->modState = Mod_State_Idle;
+			frame->request = FALSE;
+
+			return;
+		}			
 	} else {
 
 		frame->rxOK = TRUE;
@@ -828,7 +779,7 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 		crc = CRC16(frame->rxframe, frame->rxCursor - 2);
 		val = ((uint16_t)(frame->rxframe[frame->rxCursor - 1]) << 8) + 
 			frame->rxframe[frame->rxCursor - 2];
-		if (crc != val)
+		if (crc != val || frame->rxframe[0] != frame->toAddr)
 		{
 			if (frame->retryCount < MOD_MAX_RETRYS) //exceed max retry count
 			{
@@ -843,12 +794,11 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 				frame->linkFail = TRUE;
 				frame->modState = Mod_State_Idle;
 				frame->request = FALSE;
-				
 				return;
 			}
 		} else {
 			//process reply
-			frameProcessData(&modFrame);
+			frameProcessData(frame);
 			frame->retryCount = 0;
 			frame->linkFail = FALSE;
 			frame->modState = Mod_State_Idle;
