@@ -6,4 +6,7 @@
 
 #define MEM_ADDR(addr) *((volatile unsigned long *) (adr))
 
+#define RAM8(x)   	(*(__IO u8*)(u32)(x))
+#define RAM16(x)   	(*(__IO u16*)(u32)(x))
 #define RAM32(x)   	(*(__IO u32*)(u32)(x))
+

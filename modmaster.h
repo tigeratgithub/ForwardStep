@@ -101,12 +101,12 @@ typedef struct mod_int_status
 //modbus master
 typedef struct mod_master_frame
 {
-	uint16_t			baud;		//9=9.6k 19=19.2k 38=38.4 56= 56k 115 = 115200
+	uint32_t			baud;		//9=9.6k 19=19.2k 38=38.4 56= 56k 115 = 115200
 	uint16_t			parity;		//校验方式 0 = none 1 = odd 2 = even
 	uint8_t				fromAddr;			//addr of workstation
 	uint8_t				toAddr;
 	uint8_t				retryCount;		//
-	uint8_t				timeout;		//unit ms
+	uint16_t				timeout;		//unit ms
 	Mod_Rol_TypeDef		modRole;
 	Mod_Master_State_TypeDef	modState;
 	Mod_Master_Event_TypeDef	modEvent;
@@ -182,6 +182,11 @@ void startRX(Mod_Master_Frame_TypeDef* frame);
 void startTX(Mod_Master_Frame_TypeDef* frame);
 void stopUART(Mod_Master_Frame_TypeDef* frame);
 
+void mod_rw_03(Mod_Master_Frame_TypeDef *frame, uint8_t* mod_di, 
+		uint8_t* mod_do, uint8_t* mod_m, uint8_t* mod_v);
+
+void mod_rw_16(Mod_Master_Frame_TypeDef *frame, uint8_t* mod_di, 
+		uint8_t* mod_do, uint8_t* mod_m, uint8_t* mod_v);
 #endif
 
 /*

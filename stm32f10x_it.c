@@ -23,6 +23,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
+
 #include "encoder.h"
 #include "modmaster.h"
 
@@ -162,7 +163,9 @@ void DMA1_Channel2_IRQHandler(void)
 	Mod_Master_Frame_TypeDef* frame = &modu3;
 	if (DMA_GetITStatus(DMA1_FLAG_TC2) == SET)
 	{
+		__disable_irq();
 		mod_int_dma_tc(frame);
+		__enable_irq();
 	}
 	DMA_ClearFlag(DMA1_FLAG_GL2 | DMA1_FLAG_TC2 | DMA1_FLAG_HT2 | DMA1_FLAG_TE2);
 	DMA_ClearITPendingBit(DMA1_IT_GL2 | DMA1_IT_TC2 | DMA1_IT_HT2 | DMA1_IT_TE2);

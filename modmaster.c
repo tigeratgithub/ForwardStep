@@ -11,9 +11,13 @@ void t_assert_failed(u8* file, u32 line);
 //BOOL  TX_Pin __attribute__((at(0x20000004)));  //此处地址并不对
 #define TX_Pin BITVAL(&(GPIOC->ODR), 5)
 
+#define MOD_DI_COUNT	100
+#define MOD_DO_COUNT	100
+#define MOD_M_COUNT		100
+#define MOD_V_COUNT		100
 
-
-uint8_t *DI, *COILS, *M, *V;
+uint8_t MOD_DI[MOD_DI_COUNT], MOD_DO[MOD_DO_COUNT];
+uint8_t	MOD_M[MOD_M_COUNT], MOD_V[MOD_V_COUNT];
 
 /* Table of CRC values for high杘rder byte */ 
 const unsigned char auchCRCHi[] = { 
@@ -66,7 +70,7 @@ void modbusRTUInit(Mod_Master_Frame_TypeDef* frame)
 	
 	//frame->baud = baud;
 	frame->retryCount = 0;
-	frame->timeout = 60; //60ms
+	frame->timeout = 50; //60ms
 	frame->modRole = Mod_Rol_Master;
 	frame->modState = Mod_State_Init;
 	frame->modEvent = Mod_Event_No;
@@ -379,6 +383,8 @@ void cycleWork(Mod_Master_Frame_TypeDef* frame)
 		{
 			sendFrame(frame);
 		}
+	} else if (frame->modState == Mod_State_ProcessReply) {
+		frameProcessData(frame);
 	}
 	
 }
@@ -386,25 +392,21 @@ void cycleWork(Mod_Master_Frame_TypeDef* frame)
 void frameProcessData(Mod_Master_Frame_TypeDef* frame)
 {
 	//uint16_t 	*wp;
-	//uint8_t 	*bp;
+	uint8_t 	*target;
 	uint16_t	i;
-	//uint8_t		*target;
 	
 	frame->fromAddr = frame->rxframe[0];
 	//todo process
 	if ((frame->rxframe[1] & 0x80) == 0x80) 
 	{
 		frame->errCode = frame->rxframe[2];
-		//add err process FOR errCode
 		frame->respOK = FALSE;
-		return;
 	} else {
 		if (frame->cmdCode != frame->rxframe[1]) 
 		{
 			frame->errCode = Mod_Err_Unknow;
 			//add err process for cmdCode err
 			frame->respOK = FALSE;
-			return ;
 		} else {
 			//start process 
 			switch (frame->cmdCode)
@@ -412,15 +414,23 @@ void frameProcessData(Mod_Master_Frame_TypeDef* frame)
 				case ReadHoldRegs:
 				{
 					frame->dataLen = frame->rxframe[2];
+					target = (uint8_t*)((uint32_t)(MOD_V));
 					//target = M; //
-					for (i = 0; i < frame->dataLen; i ++)
+					for (i = 0; i < frame->dataLen; i += 2)
 					{
+						//----------------TIGER 此处需要定制 开始--------------------//
 						frame->data[i] = frame->rxframe[i + 3];
-						//????????,??????? start 
-						//*target = frame->data[i];
-						//target ++;						
-						//????????,??????? end
+						frame->data[i + 1] = frame->rxframe[i + 4];
+						if (i < (MOD_V_COUNT - 1))
+						{
+							*target = frame->data[i + 1];
+							target ++;
+							*target = frame->data[i];
+							target ++;
+						}
+						//----------------TIGER 此处需要定制 结束--------------------//
 					}
+						
 					frame->errCode = Mod_Err_No;
 					break;
 				}
@@ -439,9 +449,12 @@ void frameProcessData(Mod_Master_Frame_TypeDef* frame)
 			frame->errCode = 0;
 			frame->linkFail = FALSE;
 			frame->respOK = TRUE;
-			return;
 		}
 	}
+	
+	frame->modState = Mod_State_Idle;
+	frame->request = FALSE;
+
 }
 
 
@@ -584,15 +597,16 @@ void mod_master_send(Mod_Master_Frame_TypeDef* frame, uint8_t wsAddr, Mod_Cmd_Co
 			frame->txframe[6] = (frame->dataLen);
 			
 			j = 7;
-			for (i = 0; i < frame->dataLen; i ++)
+			for (i = 0; i < frame->dataLen; i += 2)
 			{
-				frame->txframe[j] = frame->data[i];
-				j ++;
+				frame->txframe[j] = frame->data[i + 1];
+				frame->txframe[j + 1] = frame->data[i];
+				j += 2;
 			}
 			crc = CRC16(frame->txframe, j);
 			
 			frame->txframe[j ++] = (uint8_t)(crc & 0x00ff);
-			frame->txframe[j ++] = (uint8_t)(crc >> 8);	
+			frame->txframe[j ++] = (uint8_t)(crc >> 8);
 			frame->txLen = j ++;
 
 			frame->request = TRUE;
@@ -610,10 +624,7 @@ void mod_master_send(Mod_Master_Frame_TypeDef* frame, uint8_t wsAddr, Mod_Cmd_Co
 //////////////////////////////////////////////////
 void setmembuf(uint8_t *di, uint8_t *coils, uint8_t *m, uint8_t *v)
 {
-	DI = di;
-	COILS = coils;
-	M = m;
-	V = v;
+//
 }
 
 void setINTPri(void)
@@ -771,15 +782,14 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 	} else {
 
 		frame->rxOK = TRUE;
-		frame->modState = Mod_State_ProcessReply;
-		frame->modEvent = Mod_Event_No;
+
 		
 		if (frame->rxCursor < 2) 
 			frame->rxCursor = 10;
 		crc = CRC16(frame->rxframe, frame->rxCursor - 2);
 		val = ((uint16_t)(frame->rxframe[frame->rxCursor - 1]) << 8) + 
 			frame->rxframe[frame->rxCursor - 2];
-		if (crc != val || frame->rxframe[0] != frame->toAddr)
+		if (crc != val)
 		{
 			if (frame->retryCount < MOD_MAX_RETRYS) //exceed max retry count
 			{
@@ -798,11 +808,12 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 			}
 		} else {
 			//process reply
-			frameProcessData(frame);
+			frame->modState = Mod_State_ProcessReply;
+			frame->modEvent = Mod_Event_No;			
+			
 			frame->retryCount = 0;
 			frame->linkFail = FALSE;
-			frame->modState = Mod_State_Idle;
-			frame->request = FALSE;
+
 			return;
 		}
 		
@@ -811,9 +822,42 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 
 }
 
+
 ///////////////////////////////////////////////////////////////
 ///////////////hardware interrupts Monit///////////////////////
 ///////////////////////////////////////////////////////////////
 
 
 
+/**
+* 读写内存,各自实现
+*/
+void mod_rw_03(Mod_Master_Frame_TypeDef *frame, uint8_t* mod_di, 
+		uint8_t* mod_do, uint8_t* mod_m, uint8_t* mod_v)
+{
+
+	uint8_t *target;
+	uint16_t i;
+
+	if (frame->dataLen > MOD_V_COUNT)
+		return;
+	target = (uint8_t*)((uint32_t)(MOD_V));
+
+	for (i = 0; i < frame->dataLen; i = i + 2)
+	{
+		if (i < (MOD_V_COUNT - 2))
+		{
+			*target = frame->data[i + 1];
+			target ++;
+			*target = frame->data[i];
+			target ++;
+		}
+	}
+
+}
+
+void mod_rw_10(Mod_Master_Frame_TypeDef *frame, uint8_t* mod_di, 
+		uint8_t* mod_do, uint8_t* mod_m, uint8_t* mod_v)
+{
+	
+}

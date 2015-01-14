@@ -31,13 +31,14 @@ void RCC_Configuration(void);
 void GPIO_Configuration(void);
 void NVIC_Configuration(void);
 
-
+#define MOD_DI_COUNT	100
+#define MOD_DO_COUNT	100
+#define MOD_M_COUNT		100
+#define MOD_V_COUNT		100
 /* Private functions ---------------------------------------------------------*/
-
-
-
-
-
+extern uint8_t MOD_DI[MOD_DI_COUNT], MOD_DO[MOD_DO_COUNT];
+extern uint8_t	MOD_M[MOD_M_COUNT], MOD_V[MOD_V_COUNT];
+extern uint16_t capture ;
 
 Mod_Master_Frame_TypeDef modu3;
 /** 
@@ -45,9 +46,10 @@ Mod_Master_Frame_TypeDef modu3;
   * @param  None
   * @retval None
   */
-int main(void) 
+int main(void)
 {
-	
+	u8 index = 0;
+	u16 oldticks = 0;
   /*!< At this stage the microcontroller clock setting is already configured, 
        this is done through SystemInit() function which is called from startup
        file (startup_stm32f10x_xx.s) before to branch to application main.
@@ -67,21 +69,40 @@ int main(void)
 
 	modu3.uart = USART3;
 	modu3.tim = TIM6;
-	modu3.baud = 19200;
+	modu3.baud = 115200;
 	modu3.parity = 2; 
 	
 	modbusRTUInit(&modu3);
 	
 
-	mod_master_send(&modu3, 1, ReadHoldRegs, 100, 10);
 	
-	cycleWork(&modu3);
+	
 	//DMA_SetCurrDataCounter(DMA1_Channel2, modu3.txLen);
 	//DMA_Cmd(DMA1_Channel2, ENABLE);
 
 	while(1)
 	{
-		
+		if (oldticks != capture)
+		{
+			if (modu3.modState == Mod_State_Idle && modu3.request == FALSE)
+			{
+				if (index == 0) {
+					mod_master_send(&modu3, 1, ReadHoldRegs, 0, 4);
+					index = 1;
+				} else if (index == 1) {
+					RAM16(&(modu3.data[0])) = RAM16(&(MOD_V[0]));
+					RAM16(&(modu3.data[2])) = RAM16(&(MOD_V[2]));
+					RAM16(&(modu3.data[4])) = RAM16(&(MOD_V[4]));
+					RAM16(&(modu3.data[6])) = 999;
+					mod_master_send(&modu3, 1, WriteMultiRegs, 4, 8);
+					index = 0;
+				}
+			
+			}
+			
+			cycleWork(&modu3);
+			oldticks = capture;
+		}
 	}
 }
 
@@ -100,7 +121,7 @@ void RCC_Configuration(void)
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 	
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE); 
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
 	/* DMA clock enable */
 	//RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
 }
@@ -187,7 +208,7 @@ void NVIC_Configuration(void)
 	
 	//systick 9MHz HCLK/8 
 	
-	if (SysTick_Config(	SystemCoreClock / 1000))
+	if (SysTick_Config(	SystemCoreClock / 10000))
 	{
 		while(1);
 	}
