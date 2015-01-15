@@ -70,7 +70,7 @@ void modbusRTUInit(Mod_Master_Frame_TypeDef* frame)
 	
 	//frame->baud = baud;
 	frame->retryCount = 0;
-	frame->timeout = 50; //60ms
+	frame->timeout = 2000; //60ms
 	frame->modRole = Mod_Rol_Master;
 	frame->modState = Mod_State_Init;
 	frame->modEvent = Mod_Event_No;
@@ -490,6 +490,8 @@ void mod_master_send(Mod_Master_Frame_TypeDef* frame, uint8_t wsAddr, Mod_Cmd_Co
 	uint8_t i, j, len;
 	uint16_t crc;
 	
+	setFrameCheck(frame, MOD_TIMER_STOP);
+	
 	frame->toAddr = wsAddr;
 	frame->cmdCode = cmdCode;
 	frame->dataAddr = dataAddr;
@@ -731,7 +733,6 @@ void mod_int_timeout(Mod_Master_Frame_TypeDef* frame)
 		{
 			//resend , count ++
 			frame->retryCount ++;
-			frame->modState = Mod_State_Sending;
 			sendFrame(frame);
 			return;
 		} else {
@@ -767,7 +768,6 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 		{
 			//resend , count ++
 			frame->retryCount ++;
-			frame->modState = Mod_State_Sending;
 			sendFrame(frame);
 			return;
 		} else {
@@ -795,7 +795,6 @@ void mod_int_frame_timeout(Mod_Master_Frame_TypeDef* frame)
 			{
 				//resend , count ++
 				frame->retryCount ++;
-				frame->modState = Mod_State_Sending;
 				sendFrame(frame);
 				return;
 			} else {

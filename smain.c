@@ -23,6 +23,7 @@
 #include "stm32f10x.h"
 #include "encoder.h"
 #include "modmaster.h"
+#include "plcsys.h"
 #include <string.h>
 
 
@@ -70,15 +71,12 @@ int main(void)
 	modu3.uart = USART3;
 	modu3.tim = TIM6;
 	modu3.baud = 115200;
-	modu3.parity = 2; 
+	modu3.parity = 2;
 	
 	modbusRTUInit(&modu3);
 	
 
 	
-	
-	//DMA_SetCurrDataCounter(DMA1_Channel2, modu3.txLen);
-	//DMA_Cmd(DMA1_Channel2, ENABLE);
 
 	while(1)
 	{
@@ -89,11 +87,11 @@ int main(void)
 				if (index == 0) {
 					mod_master_send(&modu3, 1, ReadHoldRegs, 0, 4);
 					index = 1;
-				} else if (index == 1) {
+				} else {
 					RAM16(&(modu3.data[0])) = RAM16(&(MOD_V[0]));
 					RAM16(&(modu3.data[2])) = RAM16(&(MOD_V[2]));
 					RAM16(&(modu3.data[4])) = RAM16(&(MOD_V[4]));
-					RAM16(&(modu3.data[6])) = 999;
+					RAM16(&(modu3.data[6])) = capture;
 					mod_master_send(&modu3, 1, WriteMultiRegs, 4, 8);
 					index = 0;
 				}
@@ -102,7 +100,12 @@ int main(void)
 			
 			cycleWork(&modu3);
 			oldticks = capture;
+			
+
 		}
+		
+		runCyc();
+		runSys();
 	}
 }
 
@@ -208,7 +211,7 @@ void NVIC_Configuration(void)
 	
 	//systick 9MHz HCLK/8 
 	
-	if (SysTick_Config(	SystemCoreClock / 10000))
+	if (SysTick_Config(	SystemCoreClock / 5000))
 	{
 		while(1);
 	}

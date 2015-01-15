@@ -40,6 +40,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 uint16_t capture = 0;
+extern vu32	curTick;	//plc ÏµÍ³µÎ´ð
 //extern __IO uint16_t CCR1_Val;
 //extern __IO uint16_t CCR2_Val;
 //extern __IO uint16_t CCR3_Val;
@@ -142,6 +143,7 @@ void SysTick_Handler(void)
 {
 	//todo by tiger 2015.1.10 add pulse time check 
 	capture ++;
+	curTick ++;
 }
 
 extern Mod_Master_Frame_TypeDef modu3;
